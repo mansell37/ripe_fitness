@@ -150,6 +150,19 @@ button.danger {
   color: var(--accent);
 }
 
+/* Coach adjust box */
+.coach-adjust {
+  margin-top: 16px;
+  border-top: 1px solid #2a333d;
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.coach-adjust label {
+  font-weight: 500;
+}
+
 /* Readiness card */
 .readiness-body {
   display: flex;

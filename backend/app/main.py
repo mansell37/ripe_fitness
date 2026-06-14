@@ -17,6 +17,7 @@ def _migrate(conn):
         ("profile", "weekly_hours",     real_type),
         ("profile", "weekly_km_target", real_type),
         ("profile", "schedule_notes",   "TEXT"),
+        ("profile", "coaching_notes",   "TEXT"),
     ]
     for table, col, col_type in new_cols:
         try:

@@ -23,6 +23,7 @@ class ProfileIn(BaseModel):
     weekly_hours: float | None = None
     weekly_km_target: float | None = None
     schedule_notes: str | None = None
+    coaching_notes: str | None = None
     notes: str | None = None
 
 
@@ -106,3 +107,7 @@ class PlanOut(BaseModel):
 
 class WorkoutStatusUpdate(BaseModel):
     status: str  # planned/done/skipped
+
+
+class PlanAdjustRequest(BaseModel):
+    instruction: str

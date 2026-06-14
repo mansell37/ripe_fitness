@@ -36,6 +36,7 @@ export default function Setup() {
   const [hours, setHours] = useState("");
   const [kmTarget, setKmTarget] = useState("");
   const [scheduleNotes, setScheduleNotes] = useState("");
+  const [coachingNotes, setCoachingNotes] = useState("");
 
   // New event form state
   const [evtName, setEvtName] = useState("");
@@ -53,6 +54,7 @@ export default function Setup() {
     setHours((p as any).weekly_hours?.toString() ?? "");
     setKmTarget((p as any).weekly_km_target?.toString() ?? "");
     setScheduleNotes((p as any).schedule_notes ?? "");
+    setCoachingNotes((p as any).coaching_notes ?? "");
   }
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export default function Setup() {
         weekly_hours: hours ? parseFloat(hours) : null,
         weekly_km_target: kmTarget ? parseFloat(kmTarget) : null,
         schedule_notes: scheduleNotes || null,
+        coaching_notes: coachingNotes || null,
       } as any);
       setMsgOk(true);
       setMsg("Profile saved.");
@@ -209,6 +212,15 @@ export default function Setup() {
               value={scheduleNotes}
               onChange={(e) => setScheduleNotes(e.target.value)}
               placeholder="e.g. I can train Mon–Fri mornings for up to 1hr before work. Longer sessions (1.5–2hr) on Saturday or Sunday. Wednesday evenings I have family commitments."
+              rows={3}
+            />
+          </div>
+          <div className="form-row">
+            <label>Coaching preferences <span className="muted">(standing guidance for every plan)</span></label>
+            <textarea
+              value={coachingNotes}
+              onChange={(e) => setCoachingNotes(e.target.value)}
+              placeholder="e.g. Prefer outdoor rides when dry, indoor Zwift if wet or dark. I dislike treadmill runs. Keep one full rest day. Long run on Sunday if possible."
               rows={3}
             />
           </div>

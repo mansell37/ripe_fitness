@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [volume, setVolume] = useState<VolumeStats | null>(null);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [adjustText, setAdjustText] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -209,10 +210,35 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+
+            {/* Talk to your coach — adjust this week's plan */}
+            <div className="coach-adjust">
+              <label className="muted small">
+                💬 Tell your coach about changes — weather, travel, how you feel, indoor vs outdoor…
+              </label>
+              <textarea
+                value={adjustText}
+                onChange={(e) => setAdjustText(e.target.value)}
+                placeholder="e.g. Rain forecast Thu, make it an indoor Zwift session. Traveling Wed so I'll miss that one. Legs feel heavy — ease off the intensity."
+                rows={2}
+                disabled={busy !== null}
+              />
+              <button
+                disabled={busy !== null || !adjustText.trim()}
+                onClick={() =>
+                  run("adjust", async () => {
+                    await api.adjustPlan(adjustText.trim());
+                    setAdjustText("");
+                  })
+                }
+              >
+                {busy === "adjust" ? "Adjusting…" : "Adjust plan"}
+              </button>
+            </div>
           </>
         ) : (
           <p className="muted">
-            No plan yet. Set your availability and event, then generate one.
+            No plan yet. Set your event and training budget in Setup, then generate one.
           </p>
         )}
       </section>

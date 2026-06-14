@@ -23,6 +23,8 @@ class Profile(Base):
     weekly_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
     weekly_km_target: Mapped[float | None] = mapped_column(Float, nullable=True)
     schedule_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Standing coaching preferences that bias every plan (e.g. indoor when wet).
+    coaching_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ..auth import require_auth
 from ..database import get_db
 from ..models import Plan, Workout
-from ..schemas import PlanOut, WorkoutOut, WorkoutStatusUpdate
+from ..schemas import PlanAdjustRequest, PlanOut, WorkoutOut, WorkoutStatusUpdate
 from ..services import coach
 from ..services.metrics import build_context
 
@@ -20,6 +20,14 @@ def latest_plan(db: Session = Depends(get_db)):
 def generate(db: Session = Depends(get_db)):
     try:
         return coach.generate_plan(db)
+    except coach.CoachError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+
+@router.post("/adjust", response_model=PlanOut)
+def adjust(body: PlanAdjustRequest, db: Session = Depends(get_db)):
+    try:
+        return coach.adjust_plan(db, body.instruction)
     except coach.CoachError as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
 

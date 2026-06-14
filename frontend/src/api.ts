@@ -141,6 +141,8 @@ export const api = {
   syncStatus: () => request<SyncStatus>("/activities/sync-status"),
   latestPlan: () => request<Plan | null>("/plan/latest"),
   generatePlan: () => request<Plan>("/plan/generate", { method: "POST" }),
+  adjustPlan: (instruction: string) =>
+    request<Plan>("/plan/adjust", { method: "POST", body: JSON.stringify({ instruction }) }),
   setWorkoutStatus: (id: number, status: string) =>
     request<Workout>(`/plan/workout/${id}`, {
       method: "PATCH",

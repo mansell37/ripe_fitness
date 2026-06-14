@@ -106,52 +106,43 @@ PLAN_TOOL = {
 }
 
 
+ADJUST_SYSTEM_PROMPT = SYSTEM_PROMPT + """
+
+You are REVISING an existing weekly plan in response to the athlete's feedback \
+(provided in athlete_request, with the current plan in current_plan). Honour their \
+request — schedule changes, indoor vs outdoor, swapping sessions, easing off, travel \
+days — while keeping them on track toward the goal. Keep the sessions that still work \
+and change only what the request implies. If a request would seriously compromise the \
+goal, accommodate it as best you can and note the trade-off in week_summary."""
+
+
 def _training_budget(db: Session) -> dict:
     profile = db.get(Profile, 1)
     return {
         "weekly_sessions": profile.weekly_sessions if profile else None,
         "weekly_hours": profile.weekly_hours if profile else None,
         "schedule_notes": profile.schedule_notes if profile else None,
+        "coaching_preferences": profile.coaching_notes if profile else None,
     }
 
 
-def generate_plan(db: Session) -> Plan:
+def _call_claude(system_prompt: str, user_payload: dict, lead_in: str) -> dict:
     if not settings.anthropic_api_key:
         raise CoachError("ANTHROPIC_API_KEY is not configured")
-
     try:
         from anthropic import Anthropic
     except ImportError as e:  # pragma: no cover
         raise CoachError("anthropic SDK is not installed") from e
-
-    context = build_context(db)
-    budget = _training_budget(db)
-    readiness = compute_readiness(db)
-
-    user_payload = {
-        "athlete_context": context,
-        "training_budget": budget,
-        "current_readiness": readiness,
-    }
 
     client = Anthropic(api_key=settings.anthropic_api_key)
     try:
         resp = client.messages.create(
             model=settings.anthropic_model,
             max_tokens=4096,
-            system=SYSTEM_PROMPT,
+            system=system_prompt,
             tools=[PLAN_TOOL],
             tool_choice={"type": "tool", "name": "submit_plan"},
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        "Build this week's plan from the athlete data below. "
-                        "Today is the reference date in athlete_context.today.\n\n"
-                        + json.dumps(user_payload, indent=2)
-                    ),
-                }
-            ],
+            messages=[{"role": "user", "content": lead_in + "\n\n" + json.dumps(user_payload, indent=2)}],
         )
     except Exception as e:
         raise CoachError(f"Claude request failed: {e}") from e
@@ -159,8 +150,10 @@ def generate_plan(db: Session) -> Plan:
     tool_use = next((b for b in resp.content if getattr(b, "type", None) == "tool_use"), None)
     if tool_use is None:
         raise CoachError("Claude did not return a structured plan")
-    plan_data = tool_use.input
+    return tool_use.input
 
+
+def _persist_plan(db: Session, plan_data: dict) -> Plan:
     today = datetime.now(timezone.utc).date()
     week_start = today - timedelta(days=today.weekday())
 
@@ -171,7 +164,6 @@ def generate_plan(db: Session) -> Plan:
         rationale=plan_data.get("week_summary"),
         raw=plan_data,
     )
-
     for w in plan_data.get("workouts", []):
         try:
             offset = WEEKDAYS.index(w["weekday"])
@@ -189,8 +181,45 @@ def generate_plan(db: Session) -> Plan:
                 status="planned",
             )
         )
-
     db.add(plan)
     db.commit()
     db.refresh(plan)
     return plan
+
+
+def generate_plan(db: Session) -> Plan:
+    user_payload = {
+        "athlete_context": build_context(db),
+        "training_budget": _training_budget(db),
+        "current_readiness": compute_readiness(db),
+    }
+    plan_data = _call_claude(
+        SYSTEM_PROMPT,
+        user_payload,
+        "Build this week's plan from the athlete data below. "
+        "Today is the reference date in athlete_context.today.",
+    )
+    return _persist_plan(db, plan_data)
+
+
+def adjust_plan(db: Session, instruction: str) -> Plan:
+    """Revise the latest plan per the athlete's free-text feedback."""
+    instruction = (instruction or "").strip()
+    if not instruction:
+        raise CoachError("No adjustment instruction provided")
+
+    current = db.query(Plan).order_by(Plan.created_at.desc()).first()
+    user_payload = {
+        "athlete_context": build_context(db),
+        "training_budget": _training_budget(db),
+        "current_readiness": compute_readiness(db),
+        "current_plan": current.raw if current else None,
+        "athlete_request": instruction,
+    }
+    plan_data = _call_claude(
+        ADJUST_SYSTEM_PROMPT,
+        user_payload,
+        "Revise the current_plan to honour the athlete_request below, keeping them on "
+        "track. Today is the reference date in athlete_context.today.",
+    )
+    return _persist_plan(db, plan_data)
