@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type EventItem, type Profile } from "../api";
+import { api, type EventItem } from "../api";
 
 const SPORT_LABELS: Record<string, string> = {
   marathon: "Marathon",
@@ -23,7 +23,6 @@ function parsePace(input: string): number | null {
 }
 
 export default function Setup() {
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -46,7 +45,6 @@ export default function Setup() {
 
   async function load() {
     const [p, e] = await Promise.all([api.getProfile(), api.listEvents()]);
-    setProfile(p);
     setEvents(e);
     setFtp(p.ftp_watts?.toString() ?? "");
     setPace(paceDisplay(p.threshold_pace_s_per_km));
