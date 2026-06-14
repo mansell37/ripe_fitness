@@ -1,16 +1,14 @@
 """Garmin Connect sync via the unofficial `garminconnect` library.
 
 Token bootstrap flow (handles datacenter IP blocks):
-1. If GARMIN_TOKENS_B64 env var is set, unpack it to the token store dir on
-   first use. This is populated by running scripts/garmin_bootstrap.py locally.
-2. Try loading the cached token store (avoids a full login on every sync).
-3. Fall back to a fresh credential login (works on trusted IPs / locally).
+1. If GARMIN_TOKENS_B64 env var is set, restore the session from it directly
+   (no login needed). Populated by running scripts/garmin_bootstrap.py locally.
+2. Try loading the cached token store directory (avoids a full login on sync).
+3. Fall back to a fresh credential login (works on trusted home IPs).
 """
 
 import base64
-import io
 import os
-import tarfile
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
@@ -23,24 +21,6 @@ class GarminAuthError(RuntimeError):
     pass
 
 
-def _restore_tokens_from_env() -> None:
-    """Unpack GARMIN_TOKENS_B64 into the token store dir if not already present."""
-    b64 = os.environ.get("GARMIN_TOKENS_B64", "").strip()
-    if not b64:
-        return
-    token_store = settings.garmin_token_store
-    # Already unpacked — skip.
-    if os.path.isdir(token_store) and os.listdir(token_store):
-        return
-    try:
-        data = base64.b64decode(b64)
-        buf = io.BytesIO(data)
-        with tarfile.open(fileobj=buf, mode="r:gz") as tar:
-            tar.extractall(".")
-    except Exception:
-        pass  # If unpack fails we'll try credential login below.
-
-
 def _client():
     """Return a logged-in Garmin client, reusing cached tokens when possible."""
     try:
@@ -48,29 +28,45 @@ def _client():
     except ImportError as e:  # pragma: no cover
         raise GarminAuthError("garminconnect is not installed") from e
 
-    if not settings.garmin_email or not settings.garmin_password:
-        raise GarminAuthError("GARMIN_EMAIL / GARMIN_PASSWORD are not configured")
-
-    _restore_tokens_from_env()
-
-    token_store = settings.garmin_token_store
-    try:
-        client = Garmin()
-        client.login(token_store)  # try cached tokens first
-        return client
-    except Exception:
-        # Fall back to a fresh credential login, then persist tokens.
+    # 1. Try restoring session from env var (Railway / cloud deployment).
+    b64 = os.environ.get("GARMIN_TOKENS_B64", "").strip()
+    if b64:
         try:
-            client = Garmin(settings.garmin_email, settings.garmin_password)
-            client.login()
-            client.garth.dump(token_store)
+            token_json = base64.b64decode(b64).decode()
+            client = Garmin()
+            client.client.loads(token_json)
             return client
-        except Exception as e:  # likely blocked datacenter IP / rate limit
-            raise GarminAuthError(
-                "Garmin login failed from this server IP. Run "
-                "scripts/garmin_bootstrap.py on your local PC and add the "
-                "GARMIN_TOKENS_B64 output as a Railway environment variable."
-            ) from e
+        except Exception:
+            pass
+
+    if not settings.garmin_email or not settings.garmin_password:
+        raise GarminAuthError(
+            "GARMIN_EMAIL / GARMIN_PASSWORD are not configured and no "
+            "GARMIN_TOKENS_B64 is set. Run scripts/garmin_bootstrap.py locally."
+        )
+
+    # 2. Try loading from the local token store directory.
+    token_store = settings.garmin_token_store
+    if os.path.isdir(token_store) and os.listdir(token_store):
+        try:
+            client = Garmin()
+            client.login(token_store)
+            return client
+        except Exception:
+            pass
+
+    # 3. Fall back to a fresh credential login, then save tokens for next time.
+    try:
+        client = Garmin(settings.garmin_email, settings.garmin_password)
+        client.login()
+        client.client.dump(token_store)
+        return client
+    except Exception as e:
+        raise GarminAuthError(
+            "Garmin login failed from this server IP. Run "
+            "scripts/garmin_bootstrap.py on your local PC and add the "
+            "GARMIN_TOKENS_B64 output as a Railway environment variable."
+        ) from e
 
 
 def _parse_activity(a: dict) -> dict:

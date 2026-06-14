@@ -5,16 +5,13 @@ Usage:
     uv run python scripts/garmin_bootstrap.py
 
 It will log into Garmin Connect from your trusted home IP, save the OAuth
-tokens locally, then print a base64-encoded string to paste into Railway as
-the GARMIN_TOKENS_B64 environment variable.
+tokens, then print a base64-encoded string to paste into Railway as the
+GARMIN_TOKENS_B64 environment variable.
 """
 
 import base64
 import getpass
-import io
-import os
 import sys
-import tarfile
 
 TOKEN_DIR = ".garmin_tokens"
 
@@ -29,35 +26,45 @@ def main():
     email = input("Garmin email: ").strip()
     password = getpass.getpass("Garmin password: ")
 
+    def prompt_mfa():
+        return input("Enter the one-time code Garmin emailed you: ").strip()
+
     print("\nLogging into Garmin Connect...")
     try:
-        client = Garmin(email, password)
+        client = Garmin(email, password, prompt_mfa=prompt_mfa)
         client.login()
     except Exception as e:
         print(f"\nERROR: Login failed — {e}")
-        print("\nGarmin may have sent a verification email. Check your inbox,")
-        print("click the link to approve this login, then run this script again.")
+        print("\nIf you see a 429 rate-limit error, wait 15–30 minutes and try again.")
         sys.exit(1)
 
-    os.makedirs(TOKEN_DIR, exist_ok=True)
-    client.garth.dump(TOKEN_DIR)
-    print(f"\nTokens saved to ./{TOKEN_DIR}/")
+    # Serialize tokens to a JSON string using the internal client.
+    try:
+        token_json = client.client.dumps()
+    except Exception as e:
+        print(f"\nERROR: Could not serialize tokens — {e}")
+        sys.exit(1)
 
-    # Pack the token directory into a base64 string for Railway.
-    buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-        tar.add(TOKEN_DIR)
-    encoded = base64.b64encode(buf.getvalue()).decode()
+    # Also save locally so dev sync works without the env var.
+    try:
+        client.client.dump(TOKEN_DIR)
+        print(f"Tokens also saved locally to ./{TOKEN_DIR}/")
+    except Exception:
+        pass
+
+    encoded = base64.b64encode(token_json.encode()).decode()
 
     print("\n" + "=" * 60)
-    print("SUCCESS! Copy the value below and add it to Railway as:")
+    print("SUCCESS! Add this to Railway as an environment variable on")
+    print("the responsible-cat (backend) service:")
+    print()
     print("  Variable name:  GARMIN_TOKENS_B64")
-    print("  Variable value: (the long string on the next line)")
+    print("  Variable value: (the long string below)")
     print("=" * 60)
     print(encoded)
     print("=" * 60)
-    print("\nAfter adding it to Railway, redeploy responsible-cat.")
-    print("The Sync Garmin button should then work.\n")
+    print("\nAfter adding it to Railway and redeploying responsible-cat,")
+    print("the Sync Garmin button should work.\n")
 
 
 if __name__ == "__main__":
