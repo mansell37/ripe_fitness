@@ -12,6 +12,18 @@ from sqlalchemy.orm import Session
 from ..models import Activity, DailyMetric, Event, Profile
 
 
+# Map Garmin's many activityType keys into our three buckets.
+def sport_bucket(garmin_sport: str) -> str:
+    s = (garmin_sport or "").lower()
+    if "run" in s or "treadmill" in s:
+        return "run"
+    if "cycl" in s or "bik" in s or "ride" in s:
+        return "bike"
+    if "strength" in s or "cardio" in s or "fitness_equipment" in s or "gym" in s:
+        return "gym"
+    return "other"
+
+
 def _week_load(activities: list[Activity], start: date, end: date) -> dict:
     window = [
         a for a in activities if start <= a.start_time.date() <= end
@@ -106,4 +118,59 @@ def build_context(db: Session) -> dict:
         ],
         "weekly_load": weekly,
         "recent_metrics": recent_metrics,
+    }
+
+
+def build_volume_stats(db: Session, weeks_back: int = 8) -> dict:
+    """Weekly training volume (km / hours / sessions) by sport, vs targets."""
+    today = datetime.now(timezone.utc).date()
+    this_week_start = today - timedelta(days=today.weekday())
+    earliest = this_week_start - timedelta(weeks=weeks_back - 1)
+
+    activities = (
+        db.query(Activity)
+        .filter(Activity.start_time >= datetime.combine(earliest, datetime.min.time()))
+        .all()
+    )
+
+    weeks = []
+    for w in range(weeks_back):
+        ws = this_week_start - timedelta(weeks=w)
+        we = ws + timedelta(days=6)
+        window = [a for a in activities if ws <= a.start_time.date() <= we]
+
+        by_sport: dict[str, dict] = {}
+        for a in window:
+            b = sport_bucket(a.sport)
+            agg = by_sport.setdefault(b, {"km": 0.0, "hours": 0.0, "sessions": 0})
+            agg["km"] += (a.distance_m or 0) / 1000
+            agg["hours"] += (a.duration_s or 0) / 3600
+            agg["sessions"] += 1
+
+        weeks.append(
+            {
+                "week_start": ws.isoformat(),
+                "is_current": ws == this_week_start,
+                "total_km": round(sum(s["km"] for s in by_sport.values()), 1),
+                "total_hours": round(sum(s["hours"] for s in by_sport.values()), 1),
+                "sessions": len(window),
+                "by_sport": {
+                    k: {
+                        "km": round(v["km"], 1),
+                        "hours": round(v["hours"], 1),
+                        "sessions": v["sessions"],
+                    }
+                    for k, v in by_sport.items()
+                },
+            }
+        )
+
+    profile = db.get(Profile, 1)
+    return {
+        "weeks": weeks,  # index 0 = current week, then trailing
+        "targets": {
+            "weekly_hours": profile.weekly_hours if profile else None,
+            "weekly_km": profile.weekly_km_target if profile else None,
+            "weekly_sessions": profile.weekly_sessions if profile else None,
+        },
     }

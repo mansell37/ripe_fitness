@@ -5,7 +5,9 @@ import {
   type EventItem,
   type Plan,
   type Profile,
+  type VolumeStats,
 } from "../api";
+import TrainingVolume from "../components/TrainingVolume";
 
 const SPORT_ICON: Record<string, string> = {
   run: "🏃",
@@ -24,20 +26,23 @@ export default function Dashboard() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [volume, setVolume] = useState<VolumeStats | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   async function load() {
-    const [p, e, a, pl] = await Promise.all([
+    const [p, e, a, pl, v] = await Promise.all([
       api.getProfile(),
       api.listEvents(),
       api.listActivities().catch(() => []),
       api.latestPlan().catch(() => null),
+      api.volumeStats().catch(() => null),
     ]);
     setProfile(p);
     setEvents(e);
     setActivities(a);
     setPlan(pl);
+    setVolume(v);
   }
 
   useEffect(() => {
@@ -117,6 +122,9 @@ export default function Dashboard() {
           </button>
         </section>
       </div>
+
+      {/* Training volume */}
+      {volume && <TrainingVolume stats={volume} />}
 
       {/* Weekly plan */}
       <section className="card">

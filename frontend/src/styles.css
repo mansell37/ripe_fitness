@@ -150,6 +150,69 @@ button.danger {
   color: var(--accent);
 }
 
+/* Training volume card */
+.vol-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.vol-metric-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+.vol-metric-head b {
+  font-size: 1.15rem;
+  color: var(--text);
+}
+.vol-bar {
+  height: 7px;
+  background: var(--card-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.vol-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+.vol-sports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.vol-chip {
+  background: var(--card-2);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+.vol-trend {
+  border-top: 1px solid #2a333d;
+  padding-top: 12px;
+}
+.vol-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 56px;
+}
+.vol-spark-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.vol-spark-bar {
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  min-height: 4px;
+}
+
 .card {
   background: var(--card);
   border: 1px solid #2a333d;

@@ -21,6 +21,7 @@ class ProfileIn(BaseModel):
     weight_kg: float | None = None
     weekly_sessions: int | None = None
     weekly_hours: float | None = None
+    weekly_km_target: float | None = None
     schedule_notes: str | None = None
     notes: str | None = None
 

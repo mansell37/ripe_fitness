@@ -83,6 +83,27 @@ export interface Activity {
   avg_power: number | null;
   training_load: number | null;
 }
+export interface SportVolume {
+  km: number;
+  hours: number;
+  sessions: number;
+}
+export interface WeekVolume {
+  week_start: string;
+  is_current: boolean;
+  total_km: number;
+  total_hours: number;
+  sessions: number;
+  by_sport: Record<string, SportVolume>;
+}
+export interface VolumeStats {
+  weeks: WeekVolume[];
+  targets: {
+    weekly_hours: number | null;
+    weekly_km: number | null;
+    weekly_sessions: number | null;
+  };
+}
 
 // --- Endpoints ---
 export const api = {
@@ -99,6 +120,7 @@ export const api = {
   listActivities: () => request<Activity[]>("/activities?limit=10"),
   syncGarmin: () =>
     request<{ message: string }>("/activities/sync", { method: "POST" }),
+  volumeStats: () => request<VolumeStats>("/activities/stats?weeks=8"),
   latestPlan: () => request<Plan | null>("/plan/latest"),
   generatePlan: () => request<Plan>("/plan/generate", { method: "POST" }),
   setWorkoutStatus: (id: number, status: string) =>

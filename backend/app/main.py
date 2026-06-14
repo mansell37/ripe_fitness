@@ -11,10 +11,12 @@ from .routers import activities, auth, availability, events, plan, profile
 def _migrate(conn):
     """Lightweight additive migrations — adds new columns to existing tables."""
     is_sqlite = str(engine.url).startswith("sqlite")
+    real_type = "REAL" if is_sqlite else "DOUBLE PRECISION"
     new_cols = [
-        ("profile", "weekly_sessions", "INTEGER"),
-        ("profile", "weekly_hours",    "REAL" if is_sqlite else "DOUBLE PRECISION"),
-        ("profile", "schedule_notes",  "TEXT"),
+        ("profile", "weekly_sessions",  "INTEGER"),
+        ("profile", "weekly_hours",     real_type),
+        ("profile", "weekly_km_target", real_type),
+        ("profile", "schedule_notes",   "TEXT"),
     ]
     for table, col, col_type in new_cols:
         try:

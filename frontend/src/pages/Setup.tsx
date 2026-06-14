@@ -35,6 +35,7 @@ export default function Setup() {
   const [maxHr, setMaxHr] = useState("");
   const [sessions, setSessions] = useState("");
   const [hours, setHours] = useState("");
+  const [kmTarget, setKmTarget] = useState("");
   const [scheduleNotes, setScheduleNotes] = useState("");
 
   // New event form state
@@ -52,6 +53,7 @@ export default function Setup() {
     setMaxHr(p.max_hr?.toString() ?? "");
     setSessions((p as any).weekly_sessions?.toString() ?? "");
     setHours((p as any).weekly_hours?.toString() ?? "");
+    setKmTarget((p as any).weekly_km_target?.toString() ?? "");
     setScheduleNotes((p as any).schedule_notes ?? "");
   }
 
@@ -70,6 +72,7 @@ export default function Setup() {
         max_hr: maxHr ? parseInt(maxHr) : null,
         weekly_sessions: sessions ? parseInt(sessions) : null,
         weekly_hours: hours ? parseFloat(hours) : null,
+        weekly_km_target: kmTarget ? parseFloat(kmTarget) : null,
         schedule_notes: scheduleNotes || null,
       } as any);
       setMsgOk(true);
@@ -190,6 +193,15 @@ export default function Setup() {
                 value={hours}
                 onChange={(e) => setHours(e.target.value)}
                 placeholder="8"
+              />
+            </div>
+            <div className="form-row">
+              <label>Weekly km target <span className="muted">(optional)</span></label>
+              <input
+                type="number" min="0" max="300" step="1"
+                value={kmTarget}
+                onChange={(e) => setKmTarget(e.target.value)}
+                placeholder="60"
               />
             </div>
           </div>

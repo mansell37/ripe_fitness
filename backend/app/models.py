@@ -21,6 +21,7 @@ class Profile(Base):
     # Training availability — simple budget rather than rigid time slots.
     weekly_sessions: Mapped[int | None] = mapped_column(Integer, nullable=True)
     weekly_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    weekly_km_target: Mapped[float | None] = mapped_column(Float, nullable=True)
     schedule_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
