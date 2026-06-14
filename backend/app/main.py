@@ -35,7 +35,11 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     with engine.connect() as conn:
         _migrate(conn)
+    from .services.scheduler import shutdown_scheduler, start_scheduler
+
+    start_scheduler()
     yield
+    shutdown_scheduler()
 
 
 app = FastAPI(title="ripe_fitness API", version="0.1.0", lifespan=lifespan)

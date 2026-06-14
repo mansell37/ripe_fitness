@@ -29,6 +29,14 @@ def readiness(db: Session = Depends(get_db)):
     return compute_readiness(db)
 
 
+@router.get("/sync-status")
+def sync_status():
+    """Auto-sync schedule, next run, and last run result."""
+    from ..services.scheduler import status
+
+    return status()
+
+
 @router.post("/sync", response_model=SyncResult)
 def sync(db: Session = Depends(get_db)):
     try:

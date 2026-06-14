@@ -6,6 +6,7 @@ import {
   type Plan,
   type Profile,
   type Readiness,
+  type SyncStatus,
   type VolumeStats,
 } from "../api";
 import TrainingVolume from "../components/TrainingVolume";
@@ -30,17 +31,19 @@ export default function Dashboard() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [volume, setVolume] = useState<VolumeStats | null>(null);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   async function load() {
-    const [p, e, a, pl, v, r] = await Promise.all([
+    const [p, e, a, pl, v, r, ss] = await Promise.all([
       api.getProfile(),
       api.listEvents(),
       api.listActivities().catch(() => []),
       api.latestPlan().catch(() => null),
       api.volumeStats().catch(() => null),
       api.readiness().catch(() => null),
+      api.syncStatus().catch(() => null),
     ]);
     setProfile(p);
     setEvents(e);
@@ -48,6 +51,7 @@ export default function Dashboard() {
     setPlan(pl);
     setVolume(v);
     setReadiness(r);
+    setSyncStatus(ss);
   }
 
   useEffect(() => {
@@ -123,8 +127,19 @@ export default function Dashboard() {
             disabled={busy !== null}
             onClick={() => run("sync", api.syncGarmin)}
           >
-            {busy === "sync" ? "Syncing…" : "Sync Garmin"}
+            {busy === "sync" ? "Syncing…" : "Sync now"}
           </button>
+          {syncStatus?.enabled && (
+            <div className="muted small" style={{ marginTop: 10 }}>
+              🔄 Auto-syncs {syncStatus.times.join(", ")} ({syncStatus.timezone})
+              {syncStatus.last_run?.at && (
+                <div>
+                  Last: {new Date(syncStatus.last_run.at).toLocaleString()}{" "}
+                  {syncStatus.last_run.ok ? "✓" : "⚠"}
+                </div>
+              )}
+            </div>
+          )}
         </section>
       </div>
 

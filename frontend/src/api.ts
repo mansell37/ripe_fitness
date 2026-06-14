@@ -113,6 +113,13 @@ export interface Readiness {
   factors: string[];
   resting_hr_baseline: number | null;
 }
+export interface SyncStatus {
+  enabled: boolean;
+  timezone: string;
+  times: string[];
+  next_run: string | null;
+  last_run: { at: string | null; ok: boolean | null; message: string | null };
+}
 
 // --- Endpoints ---
 export const api = {
@@ -131,6 +138,7 @@ export const api = {
     request<{ message: string }>("/activities/sync", { method: "POST" }),
   volumeStats: () => request<VolumeStats>("/activities/stats?weeks=8"),
   readiness: () => request<Readiness | null>("/activities/readiness"),
+  syncStatus: () => request<SyncStatus>("/activities/sync-status"),
   latestPlan: () => request<Plan | null>("/plan/latest"),
   generatePlan: () => request<Plan>("/plan/generate", { method: "POST" }),
   setWorkoutStatus: (id: number, status: string) =>

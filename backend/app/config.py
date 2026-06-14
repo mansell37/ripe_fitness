@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     # CORS.
     cors_origins: str = "http://localhost:5173"
 
+    # Auto-sync scheduler. Times are 08:00 / 14:00 / 20:00 in this timezone.
+    auto_sync_enabled: bool = True
+    scheduler_timezone: str = "Australia/Sydney"
+
     @property
     def sqlalchemy_url(self) -> str:
         """Normalize the DB URL so SQLAlchemy uses the psycopg3 driver on Postgres.
