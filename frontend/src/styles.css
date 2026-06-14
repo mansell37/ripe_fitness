@@ -150,6 +150,34 @@ button.danger {
   color: var(--accent);
 }
 
+/* Readiness card */
+.readiness-body {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.readiness-ring {
+  flex-shrink: 0;
+}
+.readiness-info {
+  flex: 1;
+}
+.readiness-label {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.readiness-factors {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 16px;
+}
+@media (max-width: 520px) {
+  .readiness-factors { grid-template-columns: 1fr; }
+}
+
 /* Training volume card */
 .vol-grid {
   display: grid;

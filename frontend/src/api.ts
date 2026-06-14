@@ -104,6 +104,15 @@ export interface VolumeStats {
     weekly_sessions: number | null;
   };
 }
+export interface Readiness {
+  date: string;
+  score: number;
+  label: string;
+  recommendation: string;
+  components: Record<string, number>;
+  factors: string[];
+  resting_hr_baseline: number | null;
+}
 
 // --- Endpoints ---
 export const api = {
@@ -121,6 +130,7 @@ export const api = {
   syncGarmin: () =>
     request<{ message: string }>("/activities/sync", { method: "POST" }),
   volumeStats: () => request<VolumeStats>("/activities/stats?weeks=8"),
+  readiness: () => request<Readiness | null>("/activities/readiness"),
   latestPlan: () => request<Plan | null>("/plan/latest"),
   generatePlan: () => request<Plan>("/plan/generate", { method: "POST" }),
   setWorkoutStatus: (id: number, status: string) =>

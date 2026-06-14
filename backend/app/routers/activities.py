@@ -7,6 +7,7 @@ from ..models import Activity
 from ..schemas import ActivityOut, SyncResult
 from ..services import garmin_sync
 from ..services.metrics import build_volume_stats
+from ..services.readiness import compute_readiness
 
 router = APIRouter(prefix="/activities", tags=["activities"], dependencies=[Depends(require_auth)])
 
@@ -20,6 +21,12 @@ def list_activities(limit: int = 20, db: Session = Depends(get_db)):
 def stats(weeks: int = 8, db: Session = Depends(get_db)):
     """Weekly training volume (km / hours / sessions) by sport, vs targets."""
     return build_volume_stats(db, weeks_back=weeks)
+
+
+@router.get("/readiness")
+def readiness(db: Session = Depends(get_db)):
+    """Today's recovery readiness score from synced wellness metrics."""
+    return compute_readiness(db)
 
 
 @router.post("/sync", response_model=SyncResult)

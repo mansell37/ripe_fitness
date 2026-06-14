@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..models import Plan, Profile, Workout
 from .metrics import build_context
+from .readiness import compute_readiness
 
 
 class CoachError(RuntimeError):
@@ -30,6 +31,10 @@ Do not exceed their weekly hours budget (weekly_hours). Read their schedule_note
 to understand when they realistically train.
 - Balance load against recent training load and recovery signals (sleep, body battery, \
 resting HR). If recovery is poor or recent load is high, back off.
+- Pay close attention to current_readiness. If the readiness label is "Back off", make the \
+next 1-2 days easy or rest and move hard sessions later in the week. If "Steady", keep \
+intensity moderate. If "Go hard", it's fine to schedule the week's key quality session early. \
+Reference the readiness state in the week_summary so the athlete understands the adjustment.
 - Use the athlete's FTP for bike power targets and threshold pace for run pace targets.
 - Give every workout a clear structure (warmup, main set with explicit targets, cooldown) \
 and a one-line rationale tying it to the goal or recovery state.
@@ -121,10 +126,12 @@ def generate_plan(db: Session) -> Plan:
 
     context = build_context(db)
     budget = _training_budget(db)
+    readiness = compute_readiness(db)
 
     user_payload = {
         "athlete_context": context,
         "training_budget": budget,
+        "current_readiness": readiness,
     }
 
     client = Anthropic(api_key=settings.anthropic_api_key)
