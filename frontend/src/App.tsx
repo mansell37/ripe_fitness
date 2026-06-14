@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import { api, getToken, setToken, clearToken } from "./api";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
+import Setup from "./pages/Setup";
+
+type Tab = "plan" | "setup";
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean>(!!getToken());
+  const [tab, setTab] = useState<Tab>("plan");
 
-  // If a stored token is stale, the first authed request will 401 and clear it.
   useEffect(() => {
     if (getToken()) {
       api.getProfile().catch(() => {
@@ -34,13 +37,31 @@ export default function App() {
           ripe<span className="accent">_fitness</span>
         </h1>
         {authed && (
-          <button className="ghost" onClick={handleLogout}>
-            Log out
-          </button>
+          <div className="topbar-right">
+            <nav className="tabs">
+              <button
+                className={tab === "plan" ? "tab active" : "tab"}
+                onClick={() => setTab("plan")}
+              >
+                This week
+              </button>
+              <button
+                className={tab === "setup" ? "tab active" : "tab"}
+                onClick={() => setTab("setup")}
+              >
+                Setup
+              </button>
+            </nav>
+            <button className="ghost" onClick={handleLogout}>
+              Log out
+            </button>
+          </div>
         )}
       </header>
       <main>
-        {authed ? <Dashboard /> : <Login onLogin={handleLogin} />}
+        {!authed && <Login onLogin={handleLogin} />}
+        {authed && tab === "plan" && <Dashboard />}
+        {authed && tab === "setup" && <Setup />}
       </main>
     </div>
   );

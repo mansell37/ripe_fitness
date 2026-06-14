@@ -106,4 +106,8 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+  addEvent: (body: Omit<EventItem, "id">) =>
+    request<EventItem>("/events", { method: "POST", body: JSON.stringify(body) }),
+  deleteEvent: (id: number) =>
+    request<void>(`/events/${id}`, { method: "DELETE" }),
 };

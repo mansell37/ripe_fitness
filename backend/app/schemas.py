@@ -19,6 +19,9 @@ class ProfileIn(BaseModel):
     max_hr: int | None = None
     resting_hr: int | None = None
     weight_kg: float | None = None
+    weekly_sessions: int | None = None
+    weekly_hours: float | None = None
+    schedule_notes: str | None = None
     notes: str | None = None
 
 

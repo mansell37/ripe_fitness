@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..models import AvailabilitySlot, Plan, Workout
+from ..models import Plan, Profile, Workout
 from .metrics import build_context
 
 
@@ -25,14 +25,16 @@ single athlete training across running, cycling (Zwift, power-based) and gym/str
 
 Principles:
 - Periodize toward the athlete's target event using the weeks-away figure.
-- Respect their available time slots — only prescribe sessions that fit a slot, and never \
-exceed a slot's length.
+- Produce exactly the number of sessions the athlete has budgeted (weekly_sessions). \
+Do not exceed their weekly hours budget (weekly_hours). Read their schedule_notes carefully \
+to understand when they realistically train.
 - Balance load against recent training load and recovery signals (sleep, body battery, \
 resting HR). If recovery is poor or recent load is high, back off.
 - Use the athlete's FTP for bike power targets and threshold pace for run pace targets.
 - Give every workout a clear structure (warmup, main set with explicit targets, cooldown) \
 and a one-line rationale tying it to the goal or recovery state.
-- Prefer quality over volume; include at least one rest/recovery day when appropriate.
+- Spread sessions sensibly across the week; include at least one rest day.
+- The athlete ticks off sessions as they go — order matters less than quality.
 
 Return your plan by calling the `submit_plan` tool. Do not write prose outside the tool call."""
 
@@ -52,24 +54,43 @@ PLAN_TOOL = {
                 "items": {
                     "type": "object",
                     "properties": {
-                        "weekday": {"type": "string", "enum": WEEKDAYS},
-                        "slot_start": {"type": "string", "description": "HH:MM matching an available slot, or empty."},
+                        "weekday": {
+                            "type": "string",
+                            "enum": WEEKDAYS,
+                            "description": "Suggested day — athlete can flex this.",
+                        },
                         "sport": {"type": "string", "enum": ["run", "bike", "gym", "rest"]},
                         "title": {"type": "string"},
-                        "targets": {"type": "string", "description": "Short headline targets, e.g. '6x3min @ FTP' or '16km @ 4:30/km'."},
+                        "duration_mins": {
+                            "type": "integer",
+                            "description": "Estimated session duration in minutes.",
+                        },
+                        "targets": {
+                            "type": "string",
+                            "description": "Short headline targets, e.g. '6x3min @ FTP' or '16km @ 4:30/km'.",
+                        },
                         "structure": {
                             "type": "array",
                             "description": "Ordered steps of the session.",
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "phase": {"type": "string", "description": "warmup/main/cooldown/rest"},
-                                    "detail": {"type": "string", "description": "What to do, with duration and target (power/pace/HR)."},
+                                    "phase": {
+                                        "type": "string",
+                                        "description": "warmup / main / cooldown",
+                                    },
+                                    "detail": {
+                                        "type": "string",
+                                        "description": "What to do, with duration and target (power/pace/HR).",
+                                    },
                                 },
                                 "required": ["phase", "detail"],
                             },
                         },
-                        "rationale": {"type": "string", "description": "One line: why this session today."},
+                        "rationale": {
+                            "type": "string",
+                            "description": "One line: why this session this week.",
+                        },
                     },
                     "required": ["weekday", "sport", "title", "structure", "rationale"],
                 },
@@ -80,18 +101,13 @@ PLAN_TOOL = {
 }
 
 
-def _availability_summary(db: Session) -> list[dict]:
-    slots = db.query(AvailabilitySlot).order_by(AvailabilitySlot.weekday, AvailabilitySlot.start_time).all()
-    return [
-        {
-            "day": WEEKDAYS[s.weekday],
-            "start": s.start_time,
-            "end": s.end_time,
-            "prefers": s.sport_preference or "any",
-            "note": s.note,
-        }
-        for s in slots
-    ]
+def _training_budget(db: Session) -> dict:
+    profile = db.get(Profile, 1)
+    return {
+        "weekly_sessions": profile.weekly_sessions if profile else None,
+        "weekly_hours": profile.weekly_hours if profile else None,
+        "schedule_notes": profile.schedule_notes if profile else None,
+    }
 
 
 def generate_plan(db: Session) -> Plan:
@@ -104,11 +120,11 @@ def generate_plan(db: Session) -> Plan:
         raise CoachError("anthropic SDK is not installed") from e
 
     context = build_context(db)
-    availability = _availability_summary(db)
+    budget = _training_budget(db)
 
     user_payload = {
         "athlete_context": context,
-        "weekly_availability": availability,
+        "training_budget": budget,
     }
 
     client = Anthropic(api_key=settings.anthropic_api_key)
@@ -157,7 +173,7 @@ def generate_plan(db: Session) -> Plan:
         plan.workouts.append(
             Workout(
                 workout_date=week_start + timedelta(days=offset),
-                slot_start=w.get("slot_start") or None,
+                slot_start=None,
                 sport=w.get("sport", "rest"),
                 title=w.get("title", "Session"),
                 structure={"steps": w.get("structure", [])},

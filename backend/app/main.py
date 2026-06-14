@@ -8,10 +8,31 @@ from .database import Base, engine
 from .routers import activities, auth, availability, events, plan, profile
 
 
+def _migrate(conn):
+    """Lightweight additive migrations — adds new columns to existing tables."""
+    is_sqlite = str(engine.url).startswith("sqlite")
+    new_cols = [
+        ("profile", "weekly_sessions", "INTEGER"),
+        ("profile", "weekly_hours",    "REAL" if is_sqlite else "DOUBLE PRECISION"),
+        ("profile", "schedule_notes",  "TEXT"),
+    ]
+    for table, col, col_type in new_cols:
+        try:
+            conn.execute(
+                __import__("sqlalchemy").text(
+                    f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"
+                )
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()  # column already exists — ignore
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables on startup. (For schema changes later, switch to Alembic.)
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        _migrate(conn)
     yield
 
 

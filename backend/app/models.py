@@ -13,11 +13,15 @@ class Profile(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
     ftp_watts: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    # Threshold run pace in seconds per km (e.g. 255 = 4:15/km).
+    # Threshold run pace in seconds per km (e.g. 245 = 4:05/km).
     threshold_pace_s_per_km: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_hr: Mapped[int | None] = mapped_column(Integer, nullable=True)
     resting_hr: Mapped[int | None] = mapped_column(Integer, nullable=True)
     weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Training availability — simple budget rather than rigid time slots.
+    weekly_sessions: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    weekly_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    schedule_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
