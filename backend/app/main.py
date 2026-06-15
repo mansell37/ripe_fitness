@@ -56,7 +56,16 @@ app.add_middleware(
 
 @app.get("/health", tags=["meta"])
 def health():
-    return {"status": "ok", "service": "ripe_fitness", "version": "0.1.0"}
+    # Surface which DB backend is active so persistence is easy to verify.
+    # "postgresql" = data persists across deploys; "sqlite" = ephemeral on Railway.
+    db_backend = engine.url.get_backend_name().split("+")[0]
+    return {
+        "status": "ok",
+        "service": "ripe_fitness",
+        "version": "0.1.0",
+        "db": db_backend,
+        "persistent": db_backend != "sqlite",
+    }
 
 
 app.include_router(auth.router)
