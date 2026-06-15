@@ -99,13 +99,16 @@ All routes except `/health` and `/auth/login` require `Authorization: Bearer <to
 This is a **monorepo with two services** plus a Postgres plugin.
 
 1. **Create a Railway project** and connect this GitHub repo.
-2. **Add Postgres**: *New → Database → PostgreSQL*. Railway auto-injects
-   `DATABASE_URL` into services in the project.
+2. **Add Postgres**: *New → Database → PostgreSQL*.
 3. **Backend service**: *New → GitHub repo*, set **Root Directory = `backend`**.
    Railway detects the Dockerfile. Add variables:
    `APP_PASSWORD`, `APP_API_TOKEN`, `ANTHROPIC_API_KEY`, `GARMIN_EMAIL`,
-   `GARMIN_PASSWORD`, and `CORS_ORIGINS` (= your frontend URL, set after step 4).
-   Reference the Postgres `DATABASE_URL` variable.
+   `GARMIN_PASSWORD`, `GARMIN_TOKENS_B64`, `SCHEDULER_TIMEZONE`, and
+   `CORS_ORIGINS` (= your frontend URL, set after step 4).
+   - ⚠️ **`DATABASE_URL` is required and NOT auto-injected.** Add it explicitly
+     as a reference variable: `DATABASE_URL=${{Postgres.DATABASE_URL}}`. Without
+     it the backend falls back to SQLite, which is **ephemeral on Railway and
+     wiped on every redeploy.** Verify via `/health` → `"persistent": true`.
 4. **Frontend service**: *New → GitHub repo*, set **Root Directory = `frontend`**.
    Add build variable `VITE_API_URL` = the backend service's public URL.
 5. Set the backend's `CORS_ORIGINS` to the frontend's public URL and redeploy.
