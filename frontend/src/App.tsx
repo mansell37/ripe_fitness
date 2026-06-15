@@ -1,14 +1,21 @@
 import { useEffect, useState } from "react";
 import { api, getToken, setToken, clearToken } from "./api";
-import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
+import Today from "./pages/Today";
+import Progress from "./pages/Progress";
 import Setup from "./pages/Setup";
 
-type Tab = "plan" | "setup";
+type Tab = "today" | "progress" | "goals";
+
+const TABS: { id: Tab; icon: string; label: string }[] = [
+  { id: "today", icon: "🏠", label: "Today" },
+  { id: "progress", icon: "📈", label: "Progress" },
+  { id: "goals", icon: "🎯", label: "Goals" },
+];
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean>(!!getToken());
-  const [tab, setTab] = useState<Tab>("plan");
+  const [tab, setTab] = useState<Tab>("today");
 
   useEffect(() => {
     if (getToken()) {
@@ -30,39 +37,44 @@ export default function App() {
     setAuthed(false);
   }
 
+  if (!authed) {
+    return (
+      <div className="app">
+        <header className="topbar">
+          <h1>ripe<span className="accent">_fitness</span></h1>
+        </header>
+        <main>
+          <Login onLogin={handleLogin} />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <header className="topbar">
-        <h1>
-          ripe<span className="accent">_fitness</span>
-        </h1>
-        {authed && (
-          <div className="topbar-right">
-            <nav className="tabs">
-              <button
-                className={tab === "plan" ? "tab active" : "tab"}
-                onClick={() => setTab("plan")}
-              >
-                This week
-              </button>
-              <button
-                className={tab === "setup" ? "tab active" : "tab"}
-                onClick={() => setTab("setup")}
-              >
-                Setup
-              </button>
-            </nav>
-            <button className="ghost" onClick={handleLogout}>
-              Log out
-            </button>
-          </div>
-        )}
+        <h1>ripe<span className="accent">_fitness</span></h1>
+        <button className="ghost small" onClick={handleLogout}>Log out</button>
       </header>
-      <main>
-        {!authed && <Login onLogin={handleLogin} />}
-        {authed && tab === "plan" && <Dashboard />}
-        {authed && tab === "setup" && <Setup />}
+
+      <main className="with-nav">
+        {tab === "today" && <Today />}
+        {tab === "progress" && <Progress />}
+        {tab === "goals" && <Setup />}
       </main>
+
+      <nav className="bottom-nav">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            className={tab === t.id ? "active" : ""}
+            onClick={() => setTab(t.id)}
+          >
+            <span className="nav-icon">{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

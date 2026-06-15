@@ -120,6 +120,26 @@ export interface SyncStatus {
   next_run: string | null;
   last_run: { at: string | null; ok: boolean | null; message: string | null };
 }
+export interface CoachFeedback {
+  verdict: string | null;
+  error?: string;
+  stats: {
+    adherence: {
+      has_plan: boolean;
+      planned?: number;
+      done?: number;
+      skipped?: number;
+      total?: number;
+      done_pct?: number | null;
+    };
+    this_week_km: number;
+    this_week_hours: number;
+    this_week_sessions: number;
+    trailing_avg_km: number | null;
+    targets: { weekly_hours: number | null; weekly_km: number | null; weekly_sessions: number | null };
+    readiness: Readiness | null;
+  };
+}
 
 // --- Endpoints ---
 export const api = {
@@ -143,6 +163,7 @@ export const api = {
   generatePlan: () => request<Plan>("/plan/generate", { method: "POST" }),
   adjustPlan: (instruction: string) =>
     request<Plan>("/plan/adjust", { method: "POST", body: JSON.stringify({ instruction }) }),
+  planFeedback: () => request<CoachFeedback>("/plan/feedback"),
   setWorkoutStatus: (id: number, status: string) =>
     request<Workout>(`/plan/workout/${id}`, {
       method: "PATCH",

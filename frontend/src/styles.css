@@ -150,6 +150,99 @@ button.danger {
   color: var(--accent);
 }
 
+/* Mobile bottom nav */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  background: var(--card);
+  border-top: 1px solid #2a333d;
+  z-index: 50;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.bottom-nav button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 9px 0 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 0;
+  cursor: pointer;
+}
+.bottom-nav button.active {
+  color: var(--accent);
+}
+.nav-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+main.with-nav {
+  padding-bottom: 84px;
+}
+.page {
+  animation: fade 0.18s ease;
+}
+@keyframes fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Next-workout hero */
+.hero {
+  background: linear-gradient(150deg, #1d2730, var(--card));
+  border-color: #2f3d49;
+}
+.hero-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hero-icon {
+  font-size: 1.8rem;
+}
+.hero-targets {
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+/* Coach feedback stats */
+.feedback-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* Activity list */
+.activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.activity-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.activity-info {
+  flex: 1;
+}
+
 /* Coach adjust box */
 .coach-adjust {
   margin-top: 16px;

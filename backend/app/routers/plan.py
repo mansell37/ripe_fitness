@@ -32,6 +32,12 @@ def adjust(body: PlanAdjustRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=502, detail=str(e)) from e
 
 
+@router.get("/feedback")
+def feedback(db: Session = Depends(get_db)):
+    """Tough-but-fair coach verdict on recent training, with supporting stats."""
+    return coach.weekly_feedback(db)
+
+
 @router.get("/context")
 def context(db: Session = Depends(get_db)):
     """The featurized athlete context the coach reasons over (useful for debugging)."""
