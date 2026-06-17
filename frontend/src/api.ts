@@ -146,6 +146,14 @@ export interface CoachFeedback {
       skipped?: number;
       total?: number;
       done_pct?: number | null;
+      due_so_far?: number;
+      done_so_far?: number;
+      on_track_pct?: number | null;
+    };
+    week_position?: {
+      day_name: string;
+      day_of_week: number;
+      days_remaining: number;
     };
     this_week_km: number;
     this_week_hours: number;

@@ -101,13 +101,14 @@ export default function Today() {
         <div className="card-head">
           <h3>🧠 Coach's take</h3>
           <button className="ghost small" disabled={busy !== null} onClick={loadFeedback}>
-            {busy === "feedback" ? "…" : "↻"}
+            {busy === "feedback" ? "Refreshing…" : "↻ Refresh"}
           </button>
         </div>
         {adh?.has_plan && (
           <div className="feedback-stats">
             <span className="vol-chip">
-              Adherence <b>{adh.done_pct ?? 0}%</b> ({adh.done}/{adh.total})
+              On track <b>{adh.on_track_pct ?? 0}%</b>
+              <span className="muted"> ({adh.done_so_far ?? 0}/{adh.due_so_far ?? 0} due so far)</span>
             </span>
             <span className="vol-chip">
               {feedback?.stats.this_week_km}km

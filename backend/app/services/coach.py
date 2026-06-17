@@ -233,11 +233,18 @@ def adjust_plan(db: Session, user_id: int, instruction: str) -> Plan:
 
 
 FEEDBACK_SYSTEM_PROMPT = """You are a candid, experienced endurance coach reviewing an \
-athlete's recent training. Give tough-but-fair feedback: be honest if they're slacking, \
-skipping sessions, or under their targets; call out overreaching or poor recovery; and \
-give genuine credit when they've earned it. Reference the actual numbers (adherence, \
-volume vs target, trend, readiness). Keep it to 2-4 punchy sentences — direct, no fluff, \
-no bullet points. End with one clear focus for the days ahead."""
+athlete's recent training. Give tough-but-fair feedback: honest when they're genuinely \
+slacking or overreaching, with real credit when earned.
+
+CRITICAL — judge progress relative to how far through the week it is (see week_position). \
+The training week runs Monday–Sunday. Only sessions DUE on or before today can be "missed" \
+— never criticise the athlete for sessions still ahead of them. If they're keeping up with \
+what's due so far (done_so_far vs due_so_far), they're on track: say so. Early in the week \
+with sessions still to come is normal, not slacking. Weigh recent weeks' volume and \
+readiness too.
+
+Keep it to 2-4 punchy sentences — direct, no fluff, no bullet points. End with one clear \
+focus for the rest of the week."""
 
 
 def _adherence(db: Session, user_id: int) -> dict:
@@ -249,14 +256,28 @@ def _adherence(db: Session, user_id: int) -> dict:
     )
     if not plan:
         return {"has_plan": False}
+    today = datetime.now(timezone.utc).date()
     counts = {"planned": 0, "done": 0, "skipped": 0}
+    due_so_far = 0  # non-rest sessions scheduled on or before today
+    done_so_far = 0  # of those, how many are done
     for w in plan.workouts:
         if w.sport == "rest":
             continue
         counts[w.status] = counts.get(w.status, 0) + 1
+        if w.workout_date <= today:
+            due_so_far += 1
+            if w.status == "done":
+                done_so_far += 1
     total = sum(counts.values())
-    done_pct = round(100 * counts["done"] / total) if total else None
-    return {"has_plan": True, **counts, "total": total, "done_pct": done_pct}
+    return {
+        "has_plan": True,
+        **counts,
+        "total": total,
+        "done_pct": round(100 * counts["done"] / total) if total else None,
+        "due_so_far": due_so_far,
+        "done_so_far": done_so_far,
+        "on_track_pct": round(100 * done_so_far / due_so_far) if due_so_far else None,
+    }
 
 
 def weekly_feedback(db: Session, user_id: int) -> dict:
@@ -267,7 +288,17 @@ def weekly_feedback(db: Session, user_id: int) -> dict:
     trailing_avg_km = (
         round(sum(w["total_km"] for w in trailing) / len(trailing), 1) if trailing else None
     )
+    today = datetime.now(timezone.utc).date()
+    weekday = today.weekday()  # Mon=0 … Sun=6
+    week_position = {
+        "today": today.isoformat(),
+        "day_name": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][weekday],
+        "day_of_week": weekday + 1,  # 1–7
+        "days_elapsed": weekday + 1,
+        "days_remaining": 6 - weekday,
+    }
     stats = {
+        "week_position": week_position,
         "adherence": _adherence(db, user_id),
         "this_week_km": current["total_km"] if current else 0,
         "this_week_hours": current["total_hours"] if current else 0,
