@@ -13,11 +13,21 @@ def _migrate(conn):
     is_sqlite = str(engine.url).startswith("sqlite")
     real_type = "REAL" if is_sqlite else "DOUBLE PRECISION"
     new_cols = [
-        ("profile", "weekly_sessions",  "INTEGER"),
-        ("profile", "weekly_hours",     real_type),
-        ("profile", "weekly_km_target", real_type),
-        ("profile", "schedule_notes",   "TEXT"),
-        ("profile", "coaching_notes",   "TEXT"),
+        ("profile", "weekly_sessions",   "INTEGER"),
+        ("profile", "weekly_hours",      real_type),
+        ("profile", "weekly_km_target",  real_type),
+        ("profile", "schedule_notes",    "TEXT"),
+        ("profile", "coaching_notes",    "TEXT"),
+        # Multi-user: add user_id + per-user Garmin to existing tables.
+        ("profile", "user_id",           "INTEGER"),
+        ("profile", "garmin_email",      "TEXT"),
+        ("profile", "garmin_token_blob", "TEXT"),
+        ("event", "user_id",             "INTEGER"),
+        ("availability_slot", "user_id", "INTEGER"),
+        ("activity", "user_id",          "INTEGER"),
+        ("daily_metric", "user_id",      "INTEGER"),
+        ("plan", "user_id",              "INTEGER"),
+        ("workout", "user_id",           "INTEGER"),
     ]
     for table, col, col_type in new_cols:
         try:

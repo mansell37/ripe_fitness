@@ -144,6 +144,16 @@ button.danger {
   color: var(--error);
   border-color: #3a2020;
 }
+button.linklike {
+  background: none;
+  border: none;
+  color: var(--accent);
+  padding: 0;
+  font-size: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
 .banner-ok {
   background: rgba(25, 195, 125, 0.1);
   border-color: var(--accent);

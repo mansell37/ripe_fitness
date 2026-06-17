@@ -1,5 +1,6 @@
 const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 const TOKEN_KEY = "ripe_token";
+const USER_KEY = "ripe_username";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -9,6 +10,13 @@ export function setToken(token: string) {
 }
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+export function getUsername(): string | null {
+  return localStorage.getItem(USER_KEY);
+}
+export function setUsername(name: string) {
+  localStorage.setItem(USER_KEY, name);
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -40,6 +48,13 @@ export interface Profile {
   max_hr: number | null;
   resting_hr: number | null;
   weight_kg: number | null;
+  weekly_sessions: number | null;
+  weekly_hours: number | null;
+  weekly_km_target: number | null;
+  schedule_notes: string | null;
+  coaching_notes: string | null;
+  garmin_email: string | null;
+  garmin_connected: boolean;
   notes: string | null;
 }
 export interface EventItem {
@@ -144,10 +159,15 @@ export interface CoachFeedback {
 // --- Endpoints ---
 export const api = {
   health: () => request<{ status: string }>("/health"),
-  login: (password: string) =>
-    request<{ token: string }>("/auth/login", {
+  login: (username: string, password: string) =>
+    request<{ token: string; username: string }>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username, password }),
+    }),
+  register: (username: string, password: string) =>
+    request<{ token: string; username: string }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
     }),
   getProfile: () => request<Profile>("/profile"),
   updateProfile: (body: Partial<Profile>) =>

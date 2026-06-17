@@ -37,6 +37,9 @@ export default function Setup() {
   const [kmTarget, setKmTarget] = useState("");
   const [scheduleNotes, setScheduleNotes] = useState("");
   const [coachingNotes, setCoachingNotes] = useState("");
+  const [garminEmail, setGarminEmail] = useState("");
+  const [garminToken, setGarminToken] = useState("");
+  const [garminConnected, setGarminConnected] = useState(false);
 
   // New event form state
   const [evtName, setEvtName] = useState("");
@@ -55,6 +58,8 @@ export default function Setup() {
     setKmTarget((p as any).weekly_km_target?.toString() ?? "");
     setScheduleNotes((p as any).schedule_notes ?? "");
     setCoachingNotes((p as any).coaching_notes ?? "");
+    setGarminEmail(p.garmin_email ?? "");
+    setGarminConnected(p.garmin_connected);
   }
 
   useEffect(() => {
@@ -75,9 +80,13 @@ export default function Setup() {
         weekly_km_target: kmTarget ? parseFloat(kmTarget) : null,
         schedule_notes: scheduleNotes || null,
         coaching_notes: coachingNotes || null,
+        garmin_email: garminEmail || null,
+        garmin_token_blob: garminToken || undefined, // only overwrite when provided
       } as any);
+      setGarminToken("");
       setMsgOk(true);
       setMsg("Profile saved.");
+      await load();
     } catch (err) {
       setMsgOk(false);
       setMsg(err instanceof Error ? err.message : "Save failed");
@@ -241,6 +250,40 @@ export default function Setup() {
               <label>Max HR (bpm)</label>
               <input type="number" value={maxHr} onChange={(e) => setMaxHr(e.target.value)} placeholder="190" />
             </div>
+          </div>
+
+          {/* --- Garmin connection --- */}
+          <h3 style={{ marginTop: "20px" }}>
+            ⌚ Garmin {garminConnected && <span className="accent">· connected</span>}
+          </h3>
+          <p className="muted small">
+            Connect your own Garmin so your activities, sleep and Body Battery sync in. We store
+            an access token (not your password). Generate it by running the bootstrap script on
+            your computer, then paste the result below.
+          </p>
+          <div className="form-row">
+            <label>Garmin email</label>
+            <input
+              type="email"
+              value={garminEmail}
+              onChange={(e) => setGarminEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+            />
+          </div>
+          <div className="form-row">
+            <label>
+              Garmin token{" "}
+              <span className="muted">
+                ({garminConnected ? "stored — paste again to replace" : "paste bootstrap output"})
+              </span>
+            </label>
+            <textarea
+              value={garminToken}
+              onChange={(e) => setGarminToken(e.target.value)}
+              placeholder="Paste the long GARMIN_TOKENS_B64 string from the bootstrap script"
+              rows={2}
+            />
           </div>
 
           <button type="submit" disabled={saving} style={{ marginTop: "8px" }}>

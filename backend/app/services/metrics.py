@@ -41,26 +41,32 @@ def _week_load(activities: list[Activity], start: date, end: date) -> dict:
     }
 
 
-def build_context(db: Session) -> dict:
+def build_context(db: Session, user_id: int) -> dict:
     """Assemble the full athlete context payload for plan generation."""
     today = datetime.now(timezone.utc).date()
 
-    profile = db.get(Profile, 1)
+    profile = db.query(Profile).filter(Profile.user_id == user_id).first()
     activities = (
         db.query(Activity)
-        .filter(Activity.start_time >= datetime.now(timezone.utc) - timedelta(days=42))
+        .filter(
+            Activity.user_id == user_id,
+            Activity.start_time >= datetime.now(timezone.utc) - timedelta(days=42),
+        )
         .order_by(Activity.start_time.desc())
         .all()
     )
     metrics = (
         db.query(DailyMetric)
-        .filter(DailyMetric.metric_date >= today - timedelta(days=10))
+        .filter(
+            DailyMetric.user_id == user_id,
+            DailyMetric.metric_date >= today - timedelta(days=10),
+        )
         .order_by(DailyMetric.metric_date.desc())
         .all()
     )
     events = (
         db.query(Event)
-        .filter(Event.event_date >= today)
+        .filter(Event.user_id == user_id, Event.event_date >= today)
         .order_by(Event.event_date.asc())
         .all()
     )
@@ -121,7 +127,7 @@ def build_context(db: Session) -> dict:
     }
 
 
-def build_volume_stats(db: Session, weeks_back: int = 8) -> dict:
+def build_volume_stats(db: Session, user_id: int, weeks_back: int = 8) -> dict:
     """Weekly training volume (km / hours / sessions) by sport, vs targets."""
     today = datetime.now(timezone.utc).date()
     this_week_start = today - timedelta(days=today.weekday())
@@ -129,7 +135,10 @@ def build_volume_stats(db: Session, weeks_back: int = 8) -> dict:
 
     activities = (
         db.query(Activity)
-        .filter(Activity.start_time >= datetime.combine(earliest, datetime.min.time()))
+        .filter(
+            Activity.user_id == user_id,
+            Activity.start_time >= datetime.combine(earliest, datetime.min.time()),
+        )
         .all()
     )
 
@@ -165,7 +174,7 @@ def build_volume_stats(db: Session, weeks_back: int = 8) -> dict:
             }
         )
 
-    profile = db.get(Profile, 1)
+    profile = db.query(Profile).filter(Profile.user_id == user_id).first()
     return {
         "weeks": weeks,  # index 0 = current week, then trailing
         "targets": {

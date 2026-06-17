@@ -1,76 +1,47 @@
-"""Garmin Connect sync via the unofficial `garminconnect` library.
+"""Per-user Garmin Connect sync via the unofficial `garminconnect` library.
 
-Token bootstrap flow (handles datacenter IP blocks):
-1. If GARMIN_TOKENS_B64 env var is set, restore the session from it directly
-   (no login needed). Populated by running scripts/garmin_bootstrap.py locally.
-2. Try loading the cached token store directory (avoids a full login on sync).
-3. Fall back to a fresh credential login (works on trusted home IPs).
+Each user stores their own OAuth token blob on their profile (produced by the
+bootstrap script). We restore the session from that blob — we never store
+Garmin passwords. If a user hasn't connected Garmin, sync is a no-op error.
 """
 
 import base64
-import os
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from ..config import settings
-from ..models import Activity, DailyMetric
+from ..models import Activity, DailyMetric, Profile
 
 
 class GarminAuthError(RuntimeError):
     pass
 
 
-def _client():
-    """Return a logged-in Garmin client, reusing cached tokens when possible."""
+def _client(profile: Profile | None):
+    """Return a Garmin client restored from the user's stored token blob."""
     try:
         from garminconnect import Garmin
     except ImportError as e:  # pragma: no cover
         raise GarminAuthError("garminconnect is not installed") from e
 
-    # 1. Try restoring session from env var (Railway / cloud deployment).
-    b64 = os.environ.get("GARMIN_TOKENS_B64", "").strip()
-    if b64:
-        try:
-            token_json = base64.b64decode(b64).decode()
-            client = Garmin()
-            client.client.loads(token_json)
-            return client
-        except Exception:
-            pass
-
-    if not settings.garmin_email or not settings.garmin_password:
+    if profile is None or not profile.garmin_token_blob:
         raise GarminAuthError(
-            "GARMIN_EMAIL / GARMIN_PASSWORD are not configured and no "
-            "GARMIN_TOKENS_B64 is set. Run scripts/garmin_bootstrap.py locally."
+            "Garmin is not connected for this account. Add your Garmin token "
+            "(from the bootstrap script) in the Goals tab."
         )
-
-    # 2. Try loading from the local token store directory.
-    token_store = settings.garmin_token_store
-    if os.path.isdir(token_store) and os.listdir(token_store):
-        try:
-            client = Garmin()
-            client.login(token_store)
-            return client
-        except Exception:
-            pass
-
-    # 3. Fall back to a fresh credential login, then save tokens for next time.
     try:
-        client = Garmin(settings.garmin_email, settings.garmin_password)
-        client.login()
-        client.client.dump(token_store)
+        token_json = base64.b64decode(profile.garmin_token_blob).decode()
+        client = Garmin()
+        client.client.loads(token_json)
         return client
     except Exception as e:
         raise GarminAuthError(
-            "Garmin login failed from this server IP. Run "
-            "scripts/garmin_bootstrap.py on your local PC and add the "
-            "GARMIN_TOKENS_B64 output as a Railway environment variable."
+            "Stored Garmin token is invalid or expired. Re-run the bootstrap "
+            "script and update your Garmin token in the Goals tab."
         ) from e
 
 
-def _parse_activity(a: dict) -> dict:
-    """Map a Garmin activity payload to our Activity columns."""
+def _parse_activity(a: dict, user_id: int) -> dict:
     start = a.get("startTimeLocal") or a.get("startTimeGMT")
     start_dt = None
     if start:
@@ -79,6 +50,7 @@ def _parse_activity(a: dict) -> dict:
         except ValueError:
             start_dt = None
     return {
+        "user_id": user_id,
         "garmin_id": str(a.get("activityId")),
         "sport": (a.get("activityType") or {}).get("typeKey", "unknown"),
         "start_time": start_dt or datetime.now(timezone.utc),
@@ -93,33 +65,42 @@ def _parse_activity(a: dict) -> dict:
     }
 
 
-def sync_activities(db: Session, limit: int = 30) -> int:
-    """Pull recent activities and upsert. Returns count of newly added rows."""
-    client = _client()
+def sync_activities(db: Session, user_id: int, profile: Profile, limit: int = 30) -> int:
+    """Pull recent activities for one user and upsert. Returns new-row count."""
+    client = _client(profile)
     activities = client.get_activities(0, limit)
     added = 0
     for a in activities:
         gid = str(a.get("activityId"))
         if not gid:
             continue
-        exists = db.query(Activity).filter(Activity.garmin_id == gid).first()
+        exists = (
+            db.query(Activity)
+            .filter(Activity.user_id == user_id, Activity.garmin_id == gid)
+            .first()
+        )
         if exists:
             continue
-        db.add(Activity(**_parse_activity(a)))
+        db.add(Activity(**_parse_activity(a, user_id)))
         added += 1
     db.commit()
     return added
 
 
-def sync_daily_metrics(db: Session, days: int = 14) -> int:
-    """Pull recent daily wellness metrics and upsert. Returns count added."""
-    client = _client()
+def sync_daily_metrics(db: Session, user_id: int, profile: Profile, days: int = 14) -> int:
+    """Pull recent daily wellness metrics for one user. Returns new-row count."""
+    client = _client(profile)
     added = 0
     today = datetime.now(timezone.utc).date()
     for i in range(days):
         day = today - timedelta(days=i)
         iso = day.isoformat()
-        if db.query(DailyMetric).filter(DailyMetric.metric_date == day).first():
+        exists = (
+            db.query(DailyMetric)
+            .filter(DailyMetric.user_id == user_id, DailyMetric.metric_date == day)
+            .first()
+        )
+        if exists:
             continue
         try:
             stats = client.get_stats(iso)
@@ -129,6 +110,7 @@ def sync_daily_metrics(db: Session, days: int = 14) -> int:
         sleep_dto = sleep.get("dailySleepDTO") or {}
         db.add(
             DailyMetric(
+                user_id=user_id,
                 metric_date=day,
                 resting_hr=stats.get("restingHeartRate"),
                 body_battery_high=stats.get("bodyBatteryHighestValue"),

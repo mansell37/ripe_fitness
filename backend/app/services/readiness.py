@@ -25,11 +25,11 @@ def _label(score: float) -> tuple[str, str]:
     return "Back off", "Prioritise easy/recovery or rest today."
 
 
-def compute_readiness(db: Session) -> dict | None:
+def compute_readiness(db: Session, user_id: int) -> dict | None:
     """Score the most recent day with wellness data. None if no data yet."""
     metrics = (
         db.query(DailyMetric)
-        .filter(DailyMetric.metric_date.isnot(None))
+        .filter(DailyMetric.user_id == user_id, DailyMetric.metric_date.isnot(None))
         .order_by(DailyMetric.metric_date.desc())
         .limit(30)
         .all()

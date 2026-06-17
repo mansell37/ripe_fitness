@@ -4,12 +4,19 @@ from pydantic import BaseModel, ConfigDict
 
 
 # --- Auth ---
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+
+
 class LoginRequest(BaseModel):
+    username: str
     password: str
 
 
 class LoginResponse(BaseModel):
     token: str
+    username: str
 
 
 # --- Profile ---
@@ -24,12 +31,27 @@ class ProfileIn(BaseModel):
     weekly_km_target: float | None = None
     schedule_notes: str | None = None
     coaching_notes: str | None = None
+    garmin_email: str | None = None
+    garmin_token_blob: str | None = None  # write-only; never returned
     notes: str | None = None
 
 
-class ProfileOut(ProfileIn):
+class ProfileOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    ftp_watts: int | None = None
+    threshold_pace_s_per_km: int | None = None
+    max_hr: int | None = None
+    resting_hr: int | None = None
+    weight_kg: float | None = None
+    weekly_sessions: int | None = None
+    weekly_hours: float | None = None
+    weekly_km_target: float | None = None
+    schedule_notes: str | None = None
+    coaching_notes: str | None = None
+    garmin_email: str | None = None
+    garmin_connected: bool = False  # derived: true when a token blob is stored
+    notes: str | None = None
     updated_at: datetime | None = None
 
 

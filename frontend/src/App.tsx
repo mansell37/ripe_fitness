@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, getToken, setToken, clearToken } from "./api";
+import { api, getToken, setToken, clearToken, getUsername, setUsername } from "./api";
 import Login from "./pages/Login";
 import Today from "./pages/Today";
 import Progress from "./pages/Progress";
@@ -26,9 +26,17 @@ export default function App() {
     }
   }, []);
 
-  async function handleLogin(password: string) {
-    const { token } = await api.login(password);
-    setToken(token);
+  async function handleLogin(username: string, password: string) {
+    const res = await api.login(username, password);
+    setToken(res.token);
+    setUsername(res.username);
+    setAuthed(true);
+  }
+
+  async function handleRegister(username: string, password: string) {
+    const res = await api.register(username, password);
+    setToken(res.token);
+    setUsername(res.username);
     setAuthed(true);
   }
 
@@ -44,7 +52,7 @@ export default function App() {
           <h1>ripe<span className="accent">_fitness</span></h1>
         </header>
         <main>
-          <Login onLogin={handleLogin} />
+          <Login onLogin={handleLogin} onRegister={handleRegister} />
         </main>
       </div>
     );
@@ -54,7 +62,10 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <h1>ripe<span className="accent">_fitness</span></h1>
-        <button className="ghost small" onClick={handleLogout}>Log out</button>
+        <div className="topbar-right">
+          {getUsername() && <span className="muted small">{getUsername()}</span>}
+          <button className="ghost small" onClick={handleLogout}>Log out</button>
+        </div>
       </header>
 
       <main className="with-nav">

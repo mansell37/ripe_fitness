@@ -15,6 +15,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from ..config import settings
 from ..database import SessionLocal
+from ..models import Profile
 from . import garmin_sync
 
 logger = logging.getLogger("ripe_fitness.scheduler")
@@ -27,17 +28,29 @@ _last_run: dict = {"at": None, "ok": None, "message": None}
 
 
 def _sync_job() -> None:
+    """Sync every user who has connected Garmin (has a stored token blob)."""
     global _last_run
     db = SessionLocal()
+    users_synced = 0
+    activities_total = 0
+    errors = 0
     try:
-        activities = garmin_sync.sync_activities(db)
-        metrics = garmin_sync.sync_daily_metrics(db)
-        msg = f"Synced {activities} activities, {metrics} daily metrics"
-        _last_run = {"at": datetime.now(timezone.utc).isoformat(), "ok": True, "message": msg}
+        profiles = db.query(Profile).filter(Profile.garmin_token_blob.isnot(None)).all()
+        for profile in profiles:
+            try:
+                a = garmin_sync.sync_activities(db, profile.user_id, profile)
+                garmin_sync.sync_daily_metrics(db, profile.user_id, profile)
+                activities_total += a
+                users_synced += 1
+            except Exception as e:  # one user's failure shouldn't stop the rest
+                errors += 1
+                logger.warning("Auto-sync failed for user %s: %s", profile.user_id, e)
+        msg = f"Synced {users_synced} user(s), {activities_total} new activities, {errors} error(s)"
+        _last_run = {"at": datetime.now(timezone.utc).isoformat(), "ok": errors == 0, "message": msg}
         logger.info("Auto-sync: %s", msg)
-    except Exception as e:  # GarminAuthError or anything unexpected
+    except Exception as e:
         _last_run = {"at": datetime.now(timezone.utc).isoformat(), "ok": False, "message": str(e)}
-        logger.warning("Auto-sync failed: %s", e)
+        logger.warning("Auto-sync job failed: %s", e)
     finally:
         db.close()
 

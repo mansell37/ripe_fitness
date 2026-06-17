@@ -55,16 +55,12 @@ def main():
     encoded = base64.b64encode(token_json.encode()).decode()
 
     print("\n" + "=" * 60)
-    print("SUCCESS! Add this to Railway as an environment variable on")
-    print("the responsible-cat (backend) service:")
-    print()
-    print("  Variable name:  GARMIN_TOKENS_B64")
-    print("  Variable value: (the long string below)")
+    print("SUCCESS! In the app, open the Goals tab and paste the string")
+    print("below into the 'Garmin token' field, then Save:")
     print("=" * 60)
     print(encoded)
     print("=" * 60)
-    print("\nAfter adding it to Railway and redeploying responsible-cat,")
-    print("the Sync Garmin button should work.\n")
+    print("\nAfter saving, hit 'Sync now' on the Progress tab.\n")
 
 
 if __name__ == "__main__":

@@ -116,8 +116,8 @@ and change only what the request implies. If a request would seriously compromis
 goal, accommodate it as best you can and note the trade-off in week_summary."""
 
 
-def _training_budget(db: Session) -> dict:
-    profile = db.get(Profile, 1)
+def _training_budget(db: Session, user_id: int) -> dict:
+    profile = db.query(Profile).filter(Profile.user_id == user_id).first()
     return {
         "weekly_sessions": profile.weekly_sessions if profile else None,
         "weekly_hours": profile.weekly_hours if profile else None,
@@ -153,11 +153,12 @@ def _call_claude(system_prompt: str, user_payload: dict, lead_in: str) -> dict:
     return tool_use.input
 
 
-def _persist_plan(db: Session, plan_data: dict) -> Plan:
+def _persist_plan(db: Session, user_id: int, plan_data: dict) -> Plan:
     today = datetime.now(timezone.utc).date()
     week_start = today - timedelta(days=today.weekday())
 
     plan = Plan(
+        user_id=user_id,
         created_at=datetime.now(timezone.utc),
         week_start=week_start,
         model=settings.anthropic_model,
@@ -171,6 +172,7 @@ def _persist_plan(db: Session, plan_data: dict) -> Plan:
             offset = 0
         plan.workouts.append(
             Workout(
+                user_id=user_id,
                 workout_date=week_start + timedelta(days=offset),
                 slot_start=None,
                 sport=w.get("sport", "rest"),
@@ -187,11 +189,11 @@ def _persist_plan(db: Session, plan_data: dict) -> Plan:
     return plan
 
 
-def generate_plan(db: Session) -> Plan:
+def generate_plan(db: Session, user_id: int) -> Plan:
     user_payload = {
-        "athlete_context": build_context(db),
-        "training_budget": _training_budget(db),
-        "current_readiness": compute_readiness(db),
+        "athlete_context": build_context(db, user_id),
+        "training_budget": _training_budget(db, user_id),
+        "current_readiness": compute_readiness(db, user_id),
     }
     plan_data = _call_claude(
         SYSTEM_PROMPT,
@@ -199,20 +201,25 @@ def generate_plan(db: Session) -> Plan:
         "Build this week's plan from the athlete data below. "
         "Today is the reference date in athlete_context.today.",
     )
-    return _persist_plan(db, plan_data)
+    return _persist_plan(db, user_id, plan_data)
 
 
-def adjust_plan(db: Session, instruction: str) -> Plan:
+def adjust_plan(db: Session, user_id: int, instruction: str) -> Plan:
     """Revise the latest plan per the athlete's free-text feedback."""
     instruction = (instruction or "").strip()
     if not instruction:
         raise CoachError("No adjustment instruction provided")
 
-    current = db.query(Plan).order_by(Plan.created_at.desc()).first()
+    current = (
+        db.query(Plan)
+        .filter(Plan.user_id == user_id)
+        .order_by(Plan.created_at.desc())
+        .first()
+    )
     user_payload = {
-        "athlete_context": build_context(db),
-        "training_budget": _training_budget(db),
-        "current_readiness": compute_readiness(db),
+        "athlete_context": build_context(db, user_id),
+        "training_budget": _training_budget(db, user_id),
+        "current_readiness": compute_readiness(db, user_id),
         "current_plan": current.raw if current else None,
         "athlete_request": instruction,
     }
@@ -222,7 +229,7 @@ def adjust_plan(db: Session, instruction: str) -> Plan:
         "Revise the current_plan to honour the athlete_request below, keeping them on "
         "track. Today is the reference date in athlete_context.today.",
     )
-    return _persist_plan(db, plan_data)
+    return _persist_plan(db, user_id, plan_data)
 
 
 FEEDBACK_SYSTEM_PROMPT = """You are a candid, experienced endurance coach reviewing an \
@@ -233,8 +240,13 @@ volume vs target, trend, readiness). Keep it to 2-4 punchy sentences — direct,
 no bullet points. End with one clear focus for the days ahead."""
 
 
-def _adherence(db: Session) -> dict:
-    plan = db.query(Plan).order_by(Plan.created_at.desc()).first()
+def _adherence(db: Session, user_id: int) -> dict:
+    plan = (
+        db.query(Plan)
+        .filter(Plan.user_id == user_id)
+        .order_by(Plan.created_at.desc())
+        .first()
+    )
     if not plan:
         return {"has_plan": False}
     counts = {"planned": 0, "done": 0, "skipped": 0}
@@ -247,23 +259,23 @@ def _adherence(db: Session) -> dict:
     return {"has_plan": True, **counts, "total": total, "done_pct": done_pct}
 
 
-def weekly_feedback(db: Session) -> dict:
+def weekly_feedback(db: Session, user_id: int) -> dict:
     """Tough-but-fair coach verdict on recent training, with the stats behind it."""
-    volume = build_volume_stats(db, weeks_back=4)
+    volume = build_volume_stats(db, user_id, weeks_back=4)
     current = volume["weeks"][0] if volume["weeks"] else None
     trailing = volume["weeks"][1:]
     trailing_avg_km = (
         round(sum(w["total_km"] for w in trailing) / len(trailing), 1) if trailing else None
     )
     stats = {
-        "adherence": _adherence(db),
+        "adherence": _adherence(db, user_id),
         "this_week_km": current["total_km"] if current else 0,
         "this_week_hours": current["total_hours"] if current else 0,
         "this_week_sessions": current["sessions"] if current else 0,
         "trailing_avg_km": trailing_avg_km,
         "targets": volume["targets"],
-        "readiness": compute_readiness(db),
-        "recent_activities": build_context(db)["recent_activities"][:8],
+        "readiness": compute_readiness(db, user_id),
+        "recent_activities": build_context(db, user_id)["recent_activities"][:8],
     }
 
     if not settings.anthropic_api_key:
